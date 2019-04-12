@@ -260,7 +260,6 @@ void BCN::subtractor(BCN &subtrahend, int start, int end)
 	int comparison;
 	bitset<5> temp;
 	BCD subDigit;
-	bool degreeCheck = true;  //NEEDS WORK!!
 
 	for(int i = start; i <= end || (borrow_flag == 1); i++)
 	{
@@ -305,35 +304,31 @@ void BCN::subtractor(BCN &subtrahend, int start, int end)
 		{
 			/*Subtract 1 from next, higher-degree, nonzero digit - If BCD = 0 then BCD = 9
 			 * i.e. - Perform borrow(s)*/
-			if(degreeCheck)
+
+			int borrow_index = i;
+			do
 			{
-				int borrow_index = i;
-				do
-				{
-					borrow_index++;
+				borrow_index++;
 
-					n[borrow_index].digit[0] = ~n[borrow_index].digit[0];
-					temp[1] = (n[borrow_index].digit[1] & ~n[borrow_index].digit[0]) |
-							(n[borrow_index].digit[2] & ~n[borrow_index].digit[1] & n[borrow_index].digit[0])
-							| (n[borrow_index].digit[3] & n[borrow_index].digit[0]);
-					temp[2] = (n[borrow_index].digit[2] & ~n[borrow_index].digit[0]) |
-							(n[borrow_index].digit[2] & n[borrow_index].digit[1]) |
-							(n[borrow_index].digit[3] & n[borrow_index].digit[0]);
-					temp[3] = (~n[borrow_index].digit[3] & ~n[borrow_index].digit[2] &
-							~n[borrow_index].digit[1] & n[borrow_index].digit[0]) |
-							(n[borrow_index].digit[3] & ~n[borrow_index].digit[0]);
+				n[borrow_index].digit[0] = ~n[borrow_index].digit[0];
+				temp[1] = (n[borrow_index].digit[1] & ~n[borrow_index].digit[0]) |
+						(n[borrow_index].digit[2] & ~n[borrow_index].digit[1] & n[borrow_index].digit[0])
+						| (n[borrow_index].digit[3] & n[borrow_index].digit[0]);
+				temp[2] = (n[borrow_index].digit[2] & ~n[borrow_index].digit[0]) |
+						(n[borrow_index].digit[2] & n[borrow_index].digit[1]) |
+						(n[borrow_index].digit[3] & n[borrow_index].digit[0]);
+				temp[3] = (~n[borrow_index].digit[3] & ~n[borrow_index].digit[2] &
+						~n[borrow_index].digit[1] & n[borrow_index].digit[0]) |
+						(n[borrow_index].digit[3] & ~n[borrow_index].digit[0]);
 
-					//n[borrow_index].digit[0] = temp[0];
-					n[borrow_index].digit[1] = temp[1];
-					n[borrow_index].digit[2] = temp[2];
-					n[borrow_index].digit[3] = temp[3];
+				//n[borrow_index].digit[0] = temp[0];
+				n[borrow_index].digit[1] = temp[1];
+				n[borrow_index].digit[2] = temp[2];
+				n[borrow_index].digit[3] = temp[3];
 
-				}
-				while(degreeCheck && (n[borrow_index].digit[0] &
-									  ~n[borrow_index].digit[1] &
-									  ~n[borrow_index].digit[2] &
-									  n[borrow_index].digit[3]));
 			}
+			while(n[borrow_index].digit[0] & ~n[borrow_index].digit[1] &
+					~n[borrow_index].digit[2] & n[borrow_index].digit[3]);
 
 			//Add 10 and hold digit in temp
 			temp[4] = (n[i].digit[2] & n[i].digit[1]) | n[i].digit[3];
@@ -428,10 +423,9 @@ void primalityTest(string inputPath)								//running estimate: O(log(n) + sqrt(
 
 	inputFile.close();
 
-	//testing****************
+	//testing****
 	cout << "n = ";
 	n.printBCN();
-	//***********************
 
 	//Calculating maximum length of m
 	if(length_n % 2 > 0)
@@ -443,13 +437,9 @@ void primalityTest(string inputPath)								//running estimate: O(log(n) + sqrt(
 	BCN m(length_n);
 	m.setDigitAt(0, BCD('3'));
 
-	//testing****************
-	m.setDigitAt(1, BCD('0'));
-	m.setDigitAt(2, BCD('2'));
-	length_m = 3;
+	//testing****
 	cout << "\nm = ";
 	m.printBCN();
-	//***********************
 
 	//Estimating upper bound of m
 	BCD msd_sqrt_n = estimate_msd_sqrt_n(n.get_msd(), length_n);	//Estimating msd(sqrt(n))
@@ -470,52 +460,47 @@ void primalityTest(string inputPath)								//running estimate: O(log(n) + sqrt(
 	//testing******
 	cout << "\nm after swaps: ";
 	m.printBCN();
+	//*************
 
 	int headIndex = length_n - 1;
 	int subIndex = length_n - length_m;
-	int bcdCompare = n.getDigitAt(headIndex).compare(m.getDigitAt(headIndex));
+	int bcdCompare;
 
-	if(bcdCompare == 0 || bcdCompare == 1)
+	while(subIndex > 0)
 	{
-		do
+		bcdCompare = n.getDigitAt(headIndex).compare(m.getDigitAt(headIndex));
+
+		if(bcdCompare == 0 || bcdCompare == 1)
 		{
-			n.subtractor(m, subIndex, headIndex);
-			bcdCompare = n.getDigitAt(headIndex).compare(m.getDigitAt(headIndex));
+			do
+			{
+				n.subtractor(m, subIndex, headIndex);
+				bcdCompare = n.getDigitAt(headIndex).compare(m.getDigitAt(headIndex));
+			}
+			while(bcdCompare == 0 || bcdCompare == 1);
 		}
-		while(bcdCompare == 0 || bcdCompare == 1);
-	}
-	else
-	{
-		if(!(subIndex == 0))
+		else
 		{
 			for(int i = subIndex; i < length_n; i++)
 			{
 				m.swapDigits(i, i - 1);
 			}
 			subIndex--;
-		}
-		else
-		{
-			/*if there is no digit in a higher degree and n = 0
-				then m divides n
-			 *if there is no digit in a higher degree and digit at headIndex in m
-			 	 is greater than digit at headIndex in n, then m does not divide n*/
+			headIndex--;
+
+			if(!(n.getDigitAt(headIndex + 1).isZero()))
+			{
+				do
+				{
+					n.subtractor(m, subIndex, headIndex);
+					bcdCompare = n.getDigitAt(headIndex).compare(m.getDigitAt(headIndex));
+				}
+				while(!(n.getDigitAt(headIndex + 1).isZero()) ||
+						bcdCompare == 0 || bcdCompare == 1);
+
+			}
 		}
 	}
-
-/*
-	//testing
-	cout << "length_n: " << length_n << endl;
-	cout << "length_m: " << length_m << endl;
-	cout << "length_m_max: " << length_m_max << endl;
-
-	BCN test(1);
-	test.setDigitAt(0, BCD('3'));
-	for(int i = 0; i < 187618446; i++)
-		n.subtractor(test, 0, 0);
-
-	n.printBCN();
-*/
 
 	//testing
 	cout << "\nn = ";
