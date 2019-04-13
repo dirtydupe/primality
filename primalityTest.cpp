@@ -71,6 +71,7 @@ class BCD                       //Binary-coded digit
 };
 
 BCD estimate_msd_sqrt_n(BCD, int); //Function declaration (stray)
+BCD threeBin('3');
 BCD nineBin('9');
 
 int BCD::compare(BCD other)
@@ -203,12 +204,26 @@ class BCN                       //Full binary-coded number
         void adder(BCN addend);
         void subtractor(BCN &subtrahend, int start, int end);
         int getLength(void);
-        bool isOdd(); //not using yet but will come in handy!!!
+        bool isOdd(); //not using yet but might come in handy!!!
+        bool equals(BCN &other);
         BCD get_msd();
         void swapDigits(int index_a, int index_b);
         void swapDigits(int index_a1, int index_a2, int index_b1, int index_b2); //Swaps a range of digits in n
 };
 
+bool BCN::equals(BCN &other)
+{
+	if(n_length != other.getLength())
+		return false;
+
+	for(int i = 0; i < n_length; i++)
+	{
+		if(n[i].compare(other.getDigitAt(i)) != 0)
+			return false;
+	}
+
+	return true;
+}
 
 bool BCN::isOdd()
 {
@@ -273,7 +288,7 @@ void BCN::subtractor(BCN &subtrahend, int start, int end)
 		{
 			for(int j = 0; j < 4; j++)
 			{
-				if(!(n[i].digit[j]) & subDigit.digit[j])
+				if(~(n[i].digit[j]) & subDigit.digit[j])
 				{
 					borrow_flag[0] = 1;
 					n[i].digit[j] = 1;
@@ -409,6 +424,7 @@ void primalityTest(string inputPath)								//running estimate: O(log(n) + sqrt(
 
 	//Number which is being tested for primality as an array of binary coded digits
 	BCN n(length_n);
+	BCN n_copy(length_n);			//Copy held in memory to restore original value after iteratively subtracting
 
 	//Building n													O(length(n)) = O(log(n))
 	int i = length_n - 1;
@@ -418,14 +434,15 @@ void primalityTest(string inputPath)								//running estimate: O(log(n) + sqrt(
 					continue;
 
 		n.setDigitAt(i, BCD(nChar));
+		n_copy.setDigitAt(i, BCD(nChar));
 		i--;
 	}
 
 	inputFile.close();
 
 	//testing****
-	cout << "n = ";
-	n.printBCN();
+//	cout << "n = ";
+//	n.printBCN();
 
 	//Calculating maximum length of m
 	if(length_n % 2 > 0)
@@ -438,8 +455,8 @@ void primalityTest(string inputPath)								//running estimate: O(log(n) + sqrt(
 	m.setDigitAt(0, BCD('3'));
 
 	//testing****
-	cout << "\nm = ";
-	m.printBCN();
+//	cout << "m = ";
+//	m.printBCN();
 
 	//Estimating upper bound of m
 	BCD msd_sqrt_n = estimate_msd_sqrt_n(n.get_msd(), length_n);	//Estimating msd(sqrt(n))
@@ -451,84 +468,148 @@ void primalityTest(string inputPath)								//running estimate: O(log(n) + sqrt(
 	}
 
 	/*Testing if m divides n*/
-	//Swapping digits in m to build a number equivalent to m * 10^(length(n) - 1) - *INITIAL SWAP*
-	for(int i = length_m - 1, j = 1; i >= 0; i--, j++)
+	int headIndex, subIndex, bcdCompare;
+//	int test = 4; //testing!!
+
+	while(!m.equals(m_max))
+	//while(test > 0)
 	{
-		m.swapDigits(i, length_n - j);
-	}
+		//testing****
+			cout << "Beginning of loop n = ";
+			n.printBCN();
+			//testing****
+				cout << "m = ";
+				m.printBCN();
 
-	//testing******
-	cout << "\nm after swaps: ";
-	m.printBCN();
-	//*************
+		headIndex = length_n - 1;
+		subIndex = length_n - length_m;
 
-	int headIndex = length_n - 1;
-	int subIndex = length_n - length_m;
-	int bcdCompare;
-
-	while(subIndex > 0)
-	{
-		bcdCompare = n.getDigitAt(headIndex).compare(m.getDigitAt(headIndex));
-
-		if(bcdCompare == 0 || bcdCompare == 1)
+		//Swapping digits in m to build a number equivalent to m * 10^(length(n) - 1) - *INITIAL SWAP*
+		for(int i = length_m - 1, j = 1; i >= 0; i--, j++)
 		{
-			do
-			{
-				n.subtractor(m, subIndex, headIndex);
-				bcdCompare = n.getDigitAt(headIndex).compare(m.getDigitAt(headIndex));
-			}
-			while(bcdCompare == 0 || bcdCompare == 1);
+			m.swapDigits(i, length_n - j);
 		}
-		else
-		{
-			for(int i = subIndex; i < length_n; i++)
-			{
-				m.swapDigits(i, i - 1);
-			}
-			subIndex--;
-			headIndex--;
+		//testing******
+			cout << "\nm after swaps: ";
+			m.printBCN();
 
-			if(!(n.getDigitAt(headIndex + 1).isZero()))
+		while(subIndex > 0)
+		{
+			bcdCompare = n.getDigitAt(headIndex).compare(m.getDigitAt(headIndex));
+
+			if(bcdCompare == 0 || bcdCompare == 1)
 			{
 				do
 				{
 					n.subtractor(m, subIndex, headIndex);
 					bcdCompare = n.getDigitAt(headIndex).compare(m.getDigitAt(headIndex));
 				}
-				while(!(n.getDigitAt(headIndex + 1).isZero()) ||
-						bcdCompare == 0 || bcdCompare == 1);
+				while(bcdCompare == 0 || bcdCompare == 1);
+			}
+			else
+			{
+				for(int i = subIndex; i < length_n; i++)
+				{
+					m.swapDigits(i, i - 1);
+				}
+				subIndex--;
+				headIndex--;
 
+				if(!(n.getDigitAt(headIndex + 1).isZero()))
+				{
+					do
+					{
+						n.subtractor(m, subIndex, headIndex);
+						bcdCompare = n.getDigitAt(headIndex).compare(m.getDigitAt(headIndex));
+					}
+					while(!(n.getDigitAt(headIndex + 1).isZero()) ||
+							bcdCompare == 0 || bcdCompare == 1);
+				}
 			}
 		}
+
+		bcdCompare = n.getDigitAt(0).compare(m.getDigitAt(0));
+
+		while(bcdCompare == 0 || bcdCompare == 1 || !(n.getDigitAt(headIndex + 1).isZero()))
+		{
+			n.subtractor(m, subIndex, headIndex);
+			bcdCompare = n.getDigitAt(0).compare(m.getDigitAt(0));
+		}
+
+		if(n.getDigitAt(0).isZero())
+		{
+			cout << "m divides n" << endl;
+			cout << "m = ";
+			m.printBCN();
+			cout << "\nn is not prime\nremainder = ";
+			n.printBCN();
+			break;
+
+		}
+		else
+		{
+			cout << "m is not a divisor of n" << endl; 	//testing**
+		}
+
+		//testing**
+		cout << "remainder = ";
+		n.printBCN();
+		cout << "\n\n\n";
+
+		//Incrementing m
+		if(m.getDigitAt(0).compare(threeBin) == 0)
+		{
+			BCN addend("4");
+			m.adder(addend);
+		}
+		else
+		{
+			BCN addend("2");
+			m.adder(addend);
+		}
+
+
+		//Count *actual* length of m (needs more explaining)
+		if(!(m.getDigitAt(length_m).isZero()))
+		{
+			length_m++;
+		}
+
+		//Restoring value of n
+		for(int i = 0; i < length_n; i++)
+		{
+			n.setDigitAt(i, n_copy.getDigitAt(i));
+		}
+//		test--; //testing!!
 	}
 
-	//testing
-	cout << "\nn = ";
-	n.printBCN();
-	cout << "length_n: " << length_n << endl;
-	cout << "\nm = ";
-	m.printBCN();
-	cout << "\nlength_m_max: " << length_m_max << endl;
-	cout << "m_max = ";
-	m_max.printBCN();
 
-	//Subtractor test
+
+
+//	cout << "length_n: " << length_n << endl;
+//	cout << "\nm = ";
+//	m.printBCN();
+//	cout << "\nlength_m_max: " << length_m_max << endl;
+//	cout << "m_max = ";
+//	m_max.printBCN();
+
+	//Subtractor test**
 //	cout << "\nSubtractor test: (n - (m * 10^(length(n) - 1))\n";
 //	n.subtractor(m, length_n - 1, length_n - 1);
 //	n.printBCN();
 
 
-/*	//Adder test
+/*	//Adder test**
 	cout << "\n\nadder test: (n + m)\n";
 	n.adder(m);
 	n.printBCN();
 
-	//Swap test
+	//Swap test**
 	n.swapDigits(0, 2);
 	cout << endl << "\nswapDigits() test: " << endl;
 	n.printBCN();
 
-	//BCD compare test
+	//BCD compare test**
 	cout << endl << "\ncompare() test: " << endl;
 	BCD a('5');
 	BCD b('4');
@@ -540,7 +621,7 @@ void primalityTest(string inputPath)								//running estimate: O(log(n) + sqrt(
 	cout << endl << "compTest a.compare(b): " << compTest << endl;
 
 
-	//BCN subtractor test
+	//BCN subtractor test**
 	cout << "\n\nsubtractor() test:\n  ";
 	BCN x("6905");
 	x.printBCN();
